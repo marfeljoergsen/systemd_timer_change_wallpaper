@@ -1,20 +1,7 @@
-# (1/2): Systemwide: Put script in: /etc/systemd/system/XXX.service
-# (2/2 *RECOMMENDED*): As local user: "mkdir -p ~/.config/systemd/user" (and put both .timer+.service here?)
-#        Method 2 has the obvious advantage, that we need not struggle with DISPLAY (printenv XAUTHORITY),
-#        which makes sense because we also do not need to run this as root.
-# You might need "systemctl --user daemon-reload" + "systemctl restart your-service-name"
-# --------------------------------------------------------------------------------------------
-
 [Unit]
 Description=Wallpaper renewal
 
 [Service]
-#User=mfj
-#Group=users
-#Environment=DISPLAY=:1
-#Environment="XAUTHORITY=/home/mfj/.Xauthority"
 Type=oneshot
-ExecStart=/home/martin/Desktop/Backup/systemd_timer_wallpaper_renewal/wallpaper_renewal.sh
-#ExecStart=/home/mfj/Desktop/Backup/systemd_timer_wallpaper_renewal/wallpaper_renewal.sh
-#ExecStart=/home/mfj/Desktop/Backup/systemd_timer_wallpaper_changer/wallpaper_changer.sh
-#ExecStart=/home/martin/Desktop/Backup/wallpaper_changer.sh
+ExecStart=/home/martin/Downloads/systemd_timer_change_wallpaper/script_incl_demo/pick_random_wallpapers.sh
+
