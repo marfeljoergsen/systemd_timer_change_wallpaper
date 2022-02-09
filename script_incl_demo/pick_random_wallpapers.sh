@@ -4,14 +4,35 @@
 aspfile=aspect_ratios.txt
 sortaspfile=sortedAspectList.txt
 medfile=median_aspect_ratio.txt
-homeSSID="Machine"
+expectedActiveMonitors=3
 
-# TEMPORARY - to avoid 
-#avoid_reloading_image_dimensions=true
-if [ "$avoid_reloading_image_dimensions" = true ]; then
-  echo "The \"avoid_reloading_image_dimensions\"-option is in use - disable this if directory changes"
+currentActMonitors=$(xrandr --listactivemonitors | grep ': +' | wc -l)
+if [[ ! "$expectedActiveMonitors" == "$currentActMonitors" ]]; then
+	echo "ERROR: Expected $expectedActiveMonitors monitors to be connected (check \"xrandr\"), but this seems incorrect. This script will abort now." >/dev/stderr
+	exit 1
+fi
 
-else
+#root_folder="${BASH_SOURCE}"
+root_folder="$(dirname ${BASH_SOURCE})"
+
+# Get current SSID, which determines which background wallpapers to use:
+currentSSID=$(iwgetid | grep -Po 'ESSID:"\K.*(?=")')
+workFolder="$root_folder/$currentSSID"
+#echo workFolder=$workFolder
+
+[ ! -d "$workFolder" ] && { \
+	echo "ERROR: Current SSID is \"$currentSSID\", so wallpaper-directory" >/dev/stderr ;\
+       	echo "       should be: \"$workFolder\" (can also be a symlink)." >/dev/stderr ;\
+        echo "       This script cannot continue." >/dev/stderr ;\
+       	exit 1;}
+
+# For simpliticy: Setup trap - (allow script to be called from any directory
+#   and exit to originating directory):
+trap "{ popd 2>/dev/null; exit 255; }" SIGINT SIGTERM ERR EXIT
+pushd "$workFolder" 1>&2 >/dev/null
+
+# Function to read and save aspect ratios to file:
+get_aspect_ratio_list() {
   echo "Getting aspect ratios (the ratio of its width to its height, w/h) and writing to \"$aspfile\"" >/dev/stderr
   echo "   (this is slow, for many wallpapers, disable if directory does not change):" >/dev/stderr
   # Raw input data:
@@ -28,6 +49,24 @@ else
   #find . \( -iname "*.jpg" \) -exec identify {} \; | perl -ne '/(.+?)\s+[A-Z]{3}\S?\s+(\d+)x(\d+)/; print "$1| width=$2, height=$3 |", $2/$3, "\n"' | tee "$aspfile"
   find . \( -iname "*.jpg" \) -exec identify {} \; | perl -ne '/(.+?)\s+[A-Z]{3}\S?\s+(\d+)x(\d+)/; print "$1| width=$2, height=$3 |", $2/$3, "\n"' > "$aspfile"
   echo " "
+}
+
+# Determine if the file with aspect ratios should be updated/re-created - or re-used:
+if test -f "$aspfile"; then
+	echo "$aspfile exists inside folder: $(pwd)/ - need to test if it is old and should be updated or not..."
+	if [[ $(find "$aspfile" -mtime -1 -print) ]]; then
+		echo "File $filename exists and is newer than 1 day(s), thus this file will be re-used..."
+		avoid_reloading_image_dimensions=true
+	fi
+else
+	echo "$aspfile does NOT exist inside folder: $(pwd)/ - it has to be created now.."
+fi
+
+if [ "$avoid_reloading_image_dimensions" = true ]; then
+  echo "The \"avoid_reloading_image_dimensions\"-option is in use - disable this if directory changes"
+else
+  echo "Need to update/re-create list of aspect-ratios..."
+  get_aspect_ratio_list
 fi
 
 # Sanity check:
@@ -179,8 +218,4 @@ cmdLine=$(echo "$cmdLine" | tr '\\' ' ')
 #echo "$cmdLine"
 
 eval $cmdLine
-
-# TODO / FUTURE IMPROVEMENT: Check SSID, if we're home or not
-echo " "
-[[ $(iwgetid | grep -Po 'ESSID:\K.*') == "\"$homeSSID\"" ]] && echo "Yes, we are home" || echo "No, we're away..."
 
