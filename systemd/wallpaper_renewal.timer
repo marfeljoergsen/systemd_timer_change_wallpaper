@@ -1,22 +1,7 @@
-# (1/2): Systemwide: Put script in: /etc/systemd/system/XXX.timer
-# systemctl enable --now wallpaper_renewal.timer
-# Created symlink /etc/systemd/system/timers.target.wants/wallpaper_renewal.timer → /etc/systemd/system/wallpaper_renewal.timer.
-# --------------------------------------------------------------------------------------------
-# (2/2 *RECOMMENDED*): As local user: "mkdir -p ~/.config/systemd/user" (and put both .timer+.service here?)
-#        Method 2 has the obvious advantage, that we need not struggle with DISPLAY (printenv XAUTHORITY),
-#        which makes sense because we also do not need to run this as root.
-# You might need "systemctl --user daemon-reload" + "systemctl restart your-service-name"
-# ==== Better not run as root, but use "--user": ====
-# systemctl start --user wallpaper_renewal                (this starts the SERVICE)
+# *RECOMMENDED*: As local user: "mkdir -p ~/.config/systemd/user" (and put both .timer+.service here?)
+#
 # systemctl --user enable --now wallpaper_renewal.timer   (VERY IMPORTANT TO ADD ".timer"!!!)
 # Created symlink /home/martin/.config/systemd/user/timers.target.wants/wallpaper_renewal.timer → /home/martin/.config/systemd/user/wallpaper_renewal.timer.
-# --------------------------------------------------------------------------------------------
-#systemctl --user start  wallpaper_renewal.timer     - VERY IMPORTANT WITH THE ".timer" / ".service" (=no ext) suffix, DO NOT FORGET!
-#[martin@AcerLapt Backup]$ systemctl --user list-timers --all
-#NEXT                          LEFT          LAST PASSED UNIT                    ACTIVATES
-#Tue 2019-07-09 02:57:15 CEST  1min 16s left n/a  n/a    wallpaper_renewal.timer wallpaper_renewal.service
-#
-#1 timers listed.
 # ==========================================================================
 # ===== REMEMBER TO START SERVICES (*NOT* TIMERS), AFTER THEY'VE BEEN ENABLED: =====
 #       Example: Below we see that nothing starts:
@@ -40,8 +25,6 @@
 #                https://wiki.archlinux.org/title/systemd
 #                https://www.freedesktop.org/software/systemd/man/systemd.timer.html
 #                https://www.digitalocean.com/community/tutorials/understanding-systemd-units-and-unit-files
-# ==========================================================================
-# WARNING: Modify files inside /home/martin/.config/systemd/user or install after modifying anything!
 # ==========================================================================
 [Unit]
 Description=Wallpaper renewal
