@@ -32,11 +32,52 @@
 # so the displayed images best fit the screensize.
 # =======================================================================
 
+printhelp(){
+  echo " "
+  echo "                ====================="
+  echo "                --- INSTRUCTIONS: ---"
+  echo "                ====================="
+  echo "Run the script without any arguments and the default behaviour"
+  echo "is to look for wallpapers in a subfolder of the script location,"
+  echo "corresponding to the currently connected wireless network (SSID)."
+  echo "This way you can have several different configurations or set"
+  echo "of wallpapers, e.g. home/office etc. The script will automatically"
+  echo "pick a random wallpaper once executed (e.g. via systemd-service"
+  echo "every 15 minutes or how often you prefer to have your desktop"
+  echo "background/wallpaper renewed). Optional arguments:"
+  echo " "
+  echo " -h       : Print this help message"
+  echo " -d (dir) : Specify a directory to use, instead of the SSID-name"
+  echo " -c       : Specify a commandline for setting the background."
+  echo "            The alternative is to change this commandline, by"
+  echo "            editing the script. But for different locations (e.g." 
+  echo "            laptops being moved around), this isn't ideal... Example:"
+  echo "    $0 -c 'feh --bg-max \"%landscape\" --bg-max \"%portrait\" --bg-max \"%landscape'"
+  echo "            It's important with the surrounding single quotes and inside"
+  echo "            double quotes, for each monitor-format: portrait/landscape."
+  echo " "
+}
+
+if [ "$#" -eq 0 ]; then
+  echo " --- NB: \"Use $0 -h\" to print help (instructions) message ---"
+else
+  while getopts hd:c: flag
+  do
+      case "${flag}" in
+          h) printhelp;;
+          d) dir=${OPTARG};;
+          c) cmdlineInput=${OPTARG};;
+          *) echo " * ERROR: Invalid/unknown option. Use \"-h\" for help." >/dev/stderr; exit 1;;
+      esac
+  done
+fi
+
 #setbackgroundCommandLine="/usr/bin/feh \\
-setbackgroundCommandLine="feh \\
-      --bg-max \"%landscape\" \\
-      --bg-max \"%portrait\" \\
-      --bg-max \"%landscape\""
+[ -n "$cmdlineInput" ] && setbackgroundCommandLine="$cmdlineInput" || 
+  setbackgroundCommandLine="feh \\
+        --bg-max \"%landscape\" \\
+        --bg-max \"%portrait\" \\
+        --bg-max \"%landscape\""
 
 # Text file containing aspect ratios, median aspect ratio and wireless SSID (incomplete):
 aspfile=aspect_ratios.txt
@@ -83,20 +124,35 @@ if [[ ! "$expectedActiveMonitors" == "$currentActMonitors" ]]; then
 	exit 1
 fi
 
-# Get current SSID, which determines which background wallpapers to use:
-currentSSID=$(iwgetid | grep -Po 'ESSID:"\K.*(?=")')
-workFolder="$root_folder/$currentSSID"
 
-# Error if subfolder with wallpapers named current SSID does not exist:
+# Get working folder containing images/wallpapers (by default
+# this folder is the same as the connected wireless SSID
+[ -n "$dir" ] && workFolder="$dir" || {
+  currentSSID=$(iwgetid | grep -Po 'ESSID:"\K.*(?=")')
+  workFolder="$root_folder/$currentSSID";}
+
+# Error if subfolder with wallpapers does not exist - nested:
 [ ! -d "$workFolder" ] && { \
-	echo "ERROR: Current SSID is \"$currentSSID\", so wallpaper-directory" >/dev/stderr ;\
-  echo "       should be: \"$workFolder\" (can also be a symlink)." >/dev/stderr ;\
-  echo "       This script cannot continue." >/dev/stderr ; exit 1;}
+  [ -n "$dir" ] && echo "ERROR: User-specified folder \"$dir\" with wallpapers/images does not exist." > /dev/stderr || {
+  	echo "ERROR: Current SSID is \"$currentSSID\", so wallpaper-directory" >/dev/stderr ;\
+    echo "       should be: \"$workFolder\" (can also be a symlink)." >/dev/stderr ;}
+  echo "       This script cannot continue due to this problem." >/dev/stderr ; exit 1;}
 
 # Allow script to be called from any directory and exit to originating directory:
 trap "{ popd 2>&1 >/dev/null; exit 255; }" SIGINT SIGTERM ERR
 trap "{ popd 2>&1 >/dev/null; exit 0; }" EXIT
 pushd "$workFolder" 1>&2 >/dev/null
+
+# Modify "aspfile"-variable, so it stores its temporary files inside /tmp:
+filePrefix="/tmp/$(echo $(basename $workFolder) | tr '/' '_')_"
+aspfile="$filePrefix$aspfile"
+sortaspfile="$filePrefix$sortaspfile"
+medfile="$filePrefix$medfile"
+if [ -n "$debug" ]; then
+  echo aspfile=$aspfile
+  echo sortaspfile=$sortaspfile
+  echo medfile=$medfile
+fi
 
 # Function to read and save aspect ratios to file:
 get_aspect_ratio_list() {
@@ -106,7 +162,7 @@ get_aspect_ratio_list() {
     echo " "
     echo "Re-arranging columns/format (filename first column), human-readable and writing to \"$aspfile\" --"
   fi
-  find . \( -iname "*.jpg" \) -exec identify {} \; | perl -ne '/(.+?)\s+[A-Z]{3}\S?\s+(\d+)x(\d+)/; print "$1| width=$2, height=$3 |", $2/$3, "\n"' > "$aspfile"
+  find . \( -iname "*.jpg" \) -exec identify {} \; 2>/dev/null | perl -ne '/(.+?)\s+[A-Z]{3}\S?\s+(\d+)x(\d+)/; print "$1| width=$2, height=$3 |", $2/$3, "\n"' > "$aspfile"
   if [ -n "$debug" ]; then
     echo " "
   fi
