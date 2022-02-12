@@ -94,7 +94,8 @@ workFolder="$root_folder/$currentSSID"
   echo "       This script cannot continue." >/dev/stderr ; exit 1;}
 
 # Allow script to be called from any directory and exit to originating directory:
-trap "{ popd 2>&1 >/dev/null; exit 255; }" SIGINT SIGTERM ERR EXIT
+trap "{ popd 2>&1 >/dev/null; exit 255; }" SIGINT SIGTERM ERR
+trap "{ popd 2>&1 >/dev/null; exit 0; }" EXIT
 pushd "$workFolder" 1>&2 >/dev/null
 
 # Function to read and save aspect ratios to file:

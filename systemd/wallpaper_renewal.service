@@ -3,5 +3,5 @@ Description=Wallpaper renewal
 
 [Service]
 Type=oneshot
-ExecStart=/home/martin/Downloads/systemd_timer_change_wallpaper/script_incl_demo/pick_random_wallpapers.sh
+ExecStart=/home/martin/Downloads/systemd_timer_change_wallpaper/pick_random_wallpapers.sh
 
