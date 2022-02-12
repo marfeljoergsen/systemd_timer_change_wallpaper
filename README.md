@@ -15,8 +15,12 @@ existing tools out there, so I made/created my own for the task. This is what yo
 
 * First, verify that the script itself works - "*pick_random_wallpapers.sh*"-script.  It should fail, because it uses the SSID of your wireless network to determine which set of background images to use, so you can have a collection at work, at home - unfortunately it (at least currently) probably currently doesn't work if you're not connected to a WiFi. Feel free to fix this yourself, optionally send a pull request. The quickest and easiest solution for you is to rename the "*your-SSID-name-example-wallpapers_included*"-folder to the name of your SSID. Then run the "*pick_random_wallpapers.sh*"-script. Something should happen.
 
-* You need to find the "feh"-command line and change this part, so it matches your monitor configuration (you probably don't have the exact same 3 monitor setup as I do). You might also want to change the number of portrait/landscape random images you need.
+* You need to find the "feh"-command line and change this part, so it matches your monitor configuration (you probably don't have the exact same 3 monitor setup as I do). You might also want to change the number of portrait/landscape random images you need. For a 3-monitor setup like mine I have this configuration:
+  
+  `setbackgroundCommandLine="feh --bg-max \"%landscape\" --bg-max \"%portrait\" --bg-max \"%landscape\""`
+  
+  This means I use "feh" to set the background wallpaper (you don't have to use feh, you can also use another program), the first monitor has landscape-format, the second has portrait-format and the third again has landscape-format. Use "xrandr" and/or experiment to get the order right. The script will now automatically replace the <mark>%landscape</mark> and <mark>%portrait</mark> keywords with appropriate random images. If you only have 2 monitors, you only have 2 keywords instead of 3 like in my setup and so forth.
 
 * There is also a "*systemd*"-subdirectory for an example config, that automatically calls the "*pick_random_wallpapers.sh*", e.g. every 15 minutes. First enable this, after you've verified that things are working for your particular setup.
 
-Yes, there's room for improvements - but so far it seems to do what it should for me so I might not improve it further, beyond this point. If you find bugs or would like to improve it, please do so.
+I might not improve it further, beyond this point. If you find bugs or would like to improve it even more, please do so.

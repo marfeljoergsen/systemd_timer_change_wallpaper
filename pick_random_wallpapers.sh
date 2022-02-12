@@ -32,14 +32,51 @@
 # so the displayed images best fit the screensize.
 # =======================================================================
 
+#setbackgroundCommandLine="/usr/bin/feh \\
+setbackgroundCommandLine="feh \\
+      --bg-max \"%landscape\" \\
+      --bg-max \"%portrait\" \\
+      --bg-max \"%landscape\""
+
 # Text file containing aspect ratios, median aspect ratio and wireless SSID (incomplete):
 aspfile=aspect_ratios.txt
 sortaspfile=sortedAspectList.txt
 medfile=median_aspect_ratio.txt
-expectedActiveMonitors=3
 root_folder="$(dirname ${BASH_SOURCE})"
 #debug=1 # enable debug output (non-zero length variable)
+#extraverbose=1 # extra details, if debug is enabled
 
+# Sanity check:
+backgroundUtil=$(echo "$setbackgroundCommandLine" | grep -Po '^[\w/]+\b')
+if [ -n "$debug" ]; then
+  echo "backgroundUtil=$backgroundUtil"
+fi
+# Test if (directly) executable:
+if [[ -f "$backgroundUtil" && -x $(realpath "$backgroundUtil") ]]; then
+  if [ -n "$debug" ]; then
+    echo "OK: $backgroundUtil is executable..."
+  fi
+else # Test if in path - error if neither executable nor in path:
+  #$(which "$backgroundUtil" 2>/dev/null) || { echo "ERROR: The utility \"$backgroundUtil\"" \
+  $(which "$backgroundUtil" 2>/dev/null >/dev/null) || { echo "ERROR: The utility \"$backgroundUtil\"" \
+    "is not an executable and it does not exist in path! Cannot continue, please fix!" \
+    >/dev/stderr ; exit 1;}
+  if [ -n "$debug" ]; then
+    echo "OK: $backgroundUtil is in the path..."
+  fi
+fi
+
+# Deduce how many landscape/portrait random images are needed:
+expectedActiveMonitors=$(echo "$setbackgroundCommandLine" |grep -Poi '"(\%landscape|\%portrait)"' | wc -w)
+nLand=$(echo "$setbackgroundCommandLine" |grep -Poi '"\%landscape"' | wc -w)
+nPort=$(echo "$setbackgroundCommandLine" |grep -Poi '"\%portrait"' | wc -w)
+if [ -n "$debug" ]; then
+  echo " "
+  echo " - expectedActiveMonitors=$expectedActiveMonitors"
+  echo " - nLand=$nLand"
+  echo " - nPort=$nPort"
+fi
+# Check that number of active monitors corresponds to what is expected:
 currentActMonitors=$(xrandr --listactivemonitors | grep ': +' | wc -l)
 if [[ ! "$expectedActiveMonitors" == "$currentActMonitors" ]]; then
 	echo "ERROR: Expected $expectedActiveMonitors monitors to be connected (check \"xrandr\"), but this seems incorrect. This script will abort now." >/dev/stderr
@@ -54,8 +91,7 @@ workFolder="$root_folder/$currentSSID"
 [ ! -d "$workFolder" ] && { \
 	echo "ERROR: Current SSID is \"$currentSSID\", so wallpaper-directory" >/dev/stderr ;\
   echo "       should be: \"$workFolder\" (can also be a symlink)." >/dev/stderr ;\
-  echo "       This script cannot continue." >/dev/stderr ;\
-  exit 1;}
+  echo "       This script cannot continue." >/dev/stderr ; exit 1;}
 
 # Allow script to be called from any directory and exit to originating directory:
 trap "{ popd 2>&1 >/dev/null; exit 255; }" SIGINT SIGTERM ERR EXIT
@@ -78,24 +114,25 @@ get_aspect_ratio_list() {
 # Determine if the file with aspect ratios should be updated/re-created - or re-used:
 if test -f "$aspfile"; then
   if [ -n "$debug" ]; then
-    echo "$aspfile exists inside folder: $(pwd)/ - need to test if it is old and should be updated or not..."
+    echo " "
+    echo "INFO: \"$aspfile\" exists inside folder: $(pwd)/"
   fi
 	if [[ $(find "$aspfile" -mtime -1 -print) ]]; then
-		echo "File $filename exists and is newer than 1 day(s), thus this file will be re-used..."
+		echo " * File: \"$aspfile\" exists and is newer than 1 day(s), thus this file will be re-used..."
 		avoid_reloading_image_dimensions=true
 	fi
 else
   if [ -n "$debug" ]; then
-	  echo "$aspfile does NOT exist inside folder: $(pwd)/ - it will be created now..."
+	  echo " * File: \"$aspfile\" does NOT exist inside folder: $(pwd)/ - it will be created now..."
   fi
 fi
 
 if [ "$avoid_reloading_image_dimensions" = true ]; then
   if [ -n "$debug" ]; then
-    echo "No need to update/re-create the list of aspect-ratios, this time."
+    echo " * No need to update/re-create the list of aspect-ratios, this time."
   fi
 else
-  echo "Need to update/re-create list of aspect-ratios, this could take a minute, if there are many images..."
+  echo " * Need to update/re-create list of aspect-ratios, this could take a minute, if there are many images..."
   get_aspect_ratio_list
 fi
 
@@ -111,18 +148,21 @@ if [ ! "$avoid_reloading_image_dimensions" = true ]; then
 fi
 median_asp=$(cat $medfile)
 if [ -n "$debug" ]; then
-  echo "Median aspect ratio is (has been written to file, to avoid recalculating): $median_asp"
+  echo " "
+  echo "Median aspect ratio is: $median_asp (this value has been written to file, to avoid recalculating)"
   echo " "
 fi
 
 # Get all lines, with aspect ratio above the median (=horisontal displays incl. laptop monitor)
 highAR=$(cat "$sortaspfile" | awk -v aspr=$median_asp -F' ' '{if($1>aspr) print}' | sed -r 's/\s+/\\/')
+[[ -z "$highAR" ]] && { echo "ERROR: No high aspect ratio random images found. Please check \"$sortaspfile\" and ensure there are enough images to choose among, above median aspect ratio \"$medfile\". Add images, if insufficient. Cannot continue now..." >/dev/stderr; exit 1; }
 
 # Get all lines, with aspect ratio below the median (=vertical monitor)
 lowAR=$(cat "$sortaspfile" | awk -v aspr=$median_asp -F' ' '{if($1<aspr) print}' | sed -r 's/\s+/\\/')
+[[ -z "$lowAR" ]] && { echo "ERROR: No low aspect ratio random images found. Please check \"$sortaspfile\" and ensure there are enough images to choose among, below median aspect ratio \"$medfile\". Add images, if insufficent. Cannot continue..." >/dev/stderr; exit 1; }
 
-# --- Debugging: ---
-if [ -n "$debug" ]; then
+# --- Debugging - NORMALLY NOT RELEVANT (requires extraverbose to show): ---
+if [ -n "$debug" ] && [ -n "$extraverbose" ]; then
   echo "---"
   echo "highAR (horizontally)="
   echo "$highAR"
@@ -132,14 +172,18 @@ if [ -n "$debug" ]; then
   echo "---"
 fi
 
-# === Extract 2 random lines, with "high" aspect ratio (horisontal monitors incl. laptop)
-# TODO: This should/could be easier configured to match other monitor/screen configurations!
-horizMonitor=$(echo "$highAR" | shuf -n 2)
+# === Extract $nLand random line(s), with "high" aspect ratio (horisontal monitors incl. laptop)
+#     ---*** LANDSCAPE ***---
+horizMonitor=$(echo "$highAR" | shuf -n "$nLand")
+[[ -z "$horizMonitor" ]] && { echo "ERROR: No horizontal random images found - possible internal error; cannot continue..." >/dev/stderr; exit 1; }
 if [ -n "$debug" ]; then
+  echo " "
   echo "horizMonitor="
   echo "=========================="
-  echo "$horizMonitor"
-  echo " "
+  if [ -n "$extraverbose" ]; then
+    echo "$horizMonitor"
+    echo " "
+  fi
 fi
 # The \K is the short-form (and more efficient form) of (?<=pattern) which you
 # use as a zero-width look-behind assertion before the text you want to output.
@@ -151,9 +195,10 @@ if [ -n "$debug" ]; then
   echo "onlyFilesH= (array length: ${#horizImg[@]})"
   echo "$onlyFilesH"
   echo " "
-  echo " Array index 0 (first element) : ${horizImg[0]}"
-  echo " Array index 1 (second element): ${horizImg[1]}"
-  echo " Array index 2 (second element): ${horizImg[2]}"
+  echo " - Array index 0 (first element) : ${horizImg[0]}"
+  echo " - Array index 1 (second element): ${horizImg[1]}"
+  echo " - Array index 2 (third element) : ${horizImg[2]}"
+  echo " - Array index 3 (fourth element): ${horizImg[3]}"
   echo " "
   #echo "${horizImg[*]}"
   #echo " --- horiz: ---"
@@ -161,14 +206,17 @@ if [ -n "$debug" ]; then
   echo " "
 fi
 
-# === Extract 1 random line, with "low" aspect ratio (for vertical monitor)
-# TODO: This should/could be easier configured to match other monitor/screen configurations!
-vertMonitor=$(echo "$lowAR" | shuf -n 1)
+# === Extract $nPort random line(s), with "low" aspect ratio (for vertical monitor)
+#     ---*** PORTRAIT ***---
+vertMonitor=$(echo "$lowAR" | shuf -n "$nPort")
+[[ -z "$vertMonitor" ]] && { echo "ERROR: No vertical random images found - possible internal error; cannot continue..." >/dev/stderr; exit 1; }
 if [ -n "$debug" ]; then
   echo "vertMonitor="
   echo "=========================="
-  echo "$vertMonitor"
-  echo " "
+  if [ -n "$extraverbose" ]; then
+    echo "$vertMonitor"
+    echo " "
+  fi
 fi
 onlyFilesV=$(echo "$vertMonitor" | grep -Po '.*\\\K.*') 
 readarray -t vertImg < <( echo "$onlyFilesV" )
@@ -176,33 +224,64 @@ if [ -n "$debug" ]; then
   echo "onlyFilesV= (array length: ${#vertImg[@]})"
   echo "$onlyFilesV"
   echo " "
-  echo " Array index 0 (first element) : ${vertImg[0]}"
+  echo " - Array index 0 (first element) : ${vertImg[0]}"
+  echo " - Array index 1 (second element): ${vertImg[1]}"
+  echo " - Array index 2 (third element) : ${vertImg[2]}"
+  echo " - Array index 2 (fourth element): ${vertImg[3]}"
 fi
 
+# ====== String substitution, to generate command-line for setting backgrounds ======
+# Landscape-replacement:
+cmdLine="$setbackgroundCommandLine"
+if [ -n "$debug" ]; then
+  echo ' '
+  echo ' '
+  echo '---------------------'
+  echo "cmdLine=$cmdLine"
+  echo " "
+fi
+for i in ${!horizImg[@]}; do
+  if [ -n "$debug" ]; then
+    echo " SUBSTITUTION: %landscape => \"${horizImg[$i]}\""
+  fi
+  cmdLine=$(echo "$cmdLine" | sed -z 's|%landscape|'"${horizImg[$i]}"'|')
+done
 
-# Command-line for showing it on screen:
-cmdLine="feh \\
-      --bg-max \"${horizImg[0]}\" \\
-      --bg-max \"${vertImg[0]}\" \\
-      --bg-max \"${horizImg[1]}\""
+# Portrait-replacement:
+for i in ${!vertImg[@]}; do
+  if [ -n "$debug" ]; then
+    echo " SUBSTITUTION: %portrait => \"${vertImg[$i]}\""
+  fi
+  cmdLine=$(echo "$cmdLine" | sed -z 's|%portrait|'"${vertImg[$i]}"'|')
+done
+
 
 # More debug info:
 if [ -n "$debug" ]; then
   echo ' '
   echo ' '
   echo '-----------------------------------------------'
-  echo "The 3 files and their aspect ratios (width/heigth) are (first line):"
-  echo "  Vertical monitor. Lines 2&3 are for the normal Horiz monitors incl laptop:"
+  echo "The files used and their aspect ratios (width/heigth) are:"
+  echo ' '
+  echo " *** Vertical/portrait mode monitor(s): ***"
   echo "$vertMonitor" | tr '\\' ':'
+  echo ' '
+  echo " *** Horizontal/landscape mode monitor(s): ***"
   echo "$horizMonitor" | tr '\\' ':'
   echo ' '
-  # Avoid 3 lines of "feh WARNING: \ does not exist - skipping" by converting
-  # backslash to space:
-  echo "Commandline is:"
-  echo "$cmdLine"
 fi
 
-# Command-line for evaluation:
+# Write commandline to screen, for copy/pasting and manual testing:
+if [ -n "$debug" ]; then
+  echo '---------------------'
+  echo " "
+  echo " "
+fi
+echo "cmdLine=$cmdLine"
+
+# === Command-line for evaluation: ===
+# Avoid 3 lines of "feh WARNING: \ does not exist - skipping" by converting
+# backslash to space:
 cmdLine=$(echo "$cmdLine" | tr '\\' ' ')
 eval $cmdLine
 
