@@ -70,7 +70,7 @@ else
           d) dir=${OPTARG};;
           c) cmdlineInput=${OPTARG};;
           n) LANtestInput=${OPTARG};;
-          *) echo " * ERROR: Invalid/unknown option. Use \"-h\" for help." >/dev/stderr; exit 1;;
+          *) echo " * ERROR: Invalid/unknown option. Use \"-h\" for help." >&2; exit 1;;
       esac
   done
 fi
@@ -104,7 +104,7 @@ else # Test if in path - error if neither executable nor in path:
   #$(which "$backgroundUtil" 2>/dev/null) || { echo "ERROR: The utility \"$backgroundUtil\"" \
   $(which "$backgroundUtil" 2>/dev/null >/dev/null) || { echo "ERROR: The utility \"$backgroundUtil\"" \
     "is not an executable and it does not exist in path! Cannot continue, please fix!" \
-    >/dev/stderr ; exit 1;}
+    >&2 ; exit 1;}
   if [ -n "$debug" ]; then
     echo "OK: $backgroundUtil is in the path..."
   fi
@@ -123,7 +123,7 @@ fi
 # Check that number of active monitors corresponds to what is expected:
 currentActMonitors=$(xrandr --listactivemonitors | grep ': +' | wc -l)
 if [[ ! "$expectedActiveMonitors" == "$currentActMonitors" ]]; then
-	echo "ERROR: Expected $expectedActiveMonitors monitors to be connected (check \"xrandr\"), but this seems incorrect. This script will abort now." >/dev/stderr
+	echo "ERROR: Expected $expectedActiveMonitors monitors to be connected (check \"xrandr\"), but this seems incorrect. This script will abort now." >&2
 	exit 1
 fi
 
@@ -168,8 +168,8 @@ fi
 # Function to read and save aspect ratios to file:
 get_aspect_ratio_list() {
   if [ -n "$debug" ]; then
-    echo "Getting aspect ratios (the ratio of its width to its height, w/h) and writing to \"$aspfile\"" >/dev/stderr
-    echo "   (this is slow, for many wallpapers, disable if directory does not change):" >/dev/stderr
+    echo "Getting aspect ratios (the ratio of its width to its height, w/h) and writing to \"$aspfile\"" >&2
+    echo "   (this is slow, for many wallpapers, disable if directory does not change):" >&2
     echo " "
     echo "Re-arranging columns/format (filename first column), human-readable and writing to \"$aspfile\" --"
   fi
@@ -205,7 +205,7 @@ else
 fi
 
 # Sanity check:
-if [ ! -s "$aspfile" ]; then echo "No input files found in \"$aspfile\", cannot continue..." >/dev/stderr; exit 1; fi
+if [ ! -s "$aspfile" ]; then echo "No input files found in \"$aspfile\", cannot continue..." >&2; exit 1; fi
 
 # Extract the aspect ratio column and the filename column (2 columns) + write results sorted in a file:
 cat "$aspfile" | awk '{print $NF,$0}' | sort -nr | cut -f2 -d'|' > "$sortaspfile"
@@ -223,11 +223,11 @@ fi
 
 # Get all lines, with aspect ratio above the median (=horisontal displays incl. laptop monitor)
 highAR=$(cat "$sortaspfile" | awk -v aspr=$median_asp -F' ' '{if($1>aspr) print}' | sed -r 's/\s+/\\/')
-[[ -z "$highAR" ]] && { echo "ERROR: No high aspect ratio random images found. Please check \"$sortaspfile\" and ensure there are enough images to choose among, above median aspect ratio \"$medfile\". Add images, if insufficient. Cannot continue now..." >/dev/stderr; exit 1; }
+[[ -z "$highAR" ]] && { echo "ERROR: No high aspect ratio random images found. Please check \"$sortaspfile\" and ensure there are enough images to choose among, above median aspect ratio \"$medfile\". Add images, if insufficient. Cannot continue now..." >&2; exit 1; }
 
 # Get all lines, with aspect ratio below the median (=vertical monitor)
 lowAR=$(cat "$sortaspfile" | awk -v aspr=$median_asp -F' ' '{if($1<aspr) print}' | sed -r 's/\s+/\\/')
-[[ -z "$lowAR" ]] && { echo "ERROR: No low aspect ratio random images found. Please check \"$sortaspfile\" and ensure there are enough images to choose among, below median aspect ratio \"$medfile\". Add images, if insufficent. Cannot continue..." >/dev/stderr; exit 1; }
+[[ -z "$lowAR" ]] && { echo "ERROR: No low aspect ratio random images found. Please check \"$sortaspfile\" and ensure there are enough images to choose among, below median aspect ratio \"$medfile\". Add images, if insufficent. Cannot continue..." >&2; exit 1; }
 
 # --- Debugging - NORMALLY NOT RELEVANT (requires extraverbose to show): ---
 if [ -n "$debug" ] && [ -n "$extraverbose" ]; then
@@ -243,7 +243,7 @@ fi
 # === Extract $nLand random line(s), with "high" aspect ratio (horisontal monitors incl. laptop)
 #     ---*** LANDSCAPE ***---
 horizMonitor=$(echo "$highAR" | shuf -n "$nLand")
-[[ -z "$horizMonitor" ]] && { echo "ERROR: No horizontal random images found - possible internal error; cannot continue..." >/dev/stderr; exit 1; }
+[[ -z "$horizMonitor" ]] && { echo "ERROR: No horizontal random images found - possible internal error; cannot continue..." >&2; exit 1; }
 if [ -n "$debug" ]; then
   echo " "
   echo "horizMonitor="
@@ -277,7 +277,7 @@ fi
 # === Extract $nPort random line(s), with "low" aspect ratio (for vertical monitor)
 #     ---*** PORTRAIT ***---
 vertMonitor=$(echo "$lowAR" | shuf -n "$nPort")
-[[ -z "$vertMonitor" ]] && { echo "ERROR: No vertical random images found - possible internal error; cannot continue..." >/dev/stderr; exit 1; }
+[[ -z "$vertMonitor" ]] && { echo "ERROR: No vertical random images found - possible internal error; cannot continue..." >&2; exit 1; }
 if [ -n "$debug" ]; then
   echo "vertMonitor="
   echo "=========================="
