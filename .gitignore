@@ -1,7 +1,5 @@
-aspect_ratios.txt
-median_aspect_ratio.txt
-sortedAspectList.txt
-
-# Below is my SSID-folder
+# Personal working folders and files:
 Machine
+systemd/wallpaper_renewal.service
+systemd/wallpaper_renewal.timer
 

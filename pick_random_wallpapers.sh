@@ -46,12 +46,14 @@ printhelp(){
   echo "every 15 minutes or how often you prefer to have your desktop"
   echo "background/wallpaper renewed). Optional arguments:"
   echo " "
-  echo " -h       : Print this help message"
-  echo " -d (dir) : Specify a directory to use, instead of the SSID-name"
-  echo " -c       : Specify a commandline for setting the background."
-  echo "            The alternative is to change this commandline, by"
-  echo "            editing the script. But for different locations (e.g." 
-  echo "            laptops being moved around), this isn't ideal... Example:"
+  echo " -h           : Print this help message"
+  echo " -d (dir)     : Specify a directory to use, instead of the SSID-name"
+  echo ' -n "expr=dir": Specify a commandline for LAN-test and use "dir" if no errors (ret code=0)'.
+  echo '       Example: -n "ping -c 1 192.168.1.1 >/dev/null && arp |grep -i '\'192.168.1.1\''|grep -oP '\'\\w{2}:\\w{2}:\\w{2}:\\w{2}:\\w{2}:\\w{2}\'' | grep -qi '\'ab:cd:ef:12:34:56\''=Machine" (one long string)'
+  echo " -c           : Specify a commandline for setting the background."
+  echo "                The alternative is to change this commandline, by"
+  echo "                editing the script. But for different locations (e.g." 
+  echo "                laptops being moved around), this isn't ideal... Example:"
   echo "    $0 -c 'feh --bg-max \"%landscape\" --bg-max \"%portrait\" --bg-max \"%landscape'"
   echo "            It's important with the surrounding single quotes and inside"
   echo "            double quotes, for each monitor-format: portrait/landscape."
@@ -61,12 +63,13 @@ printhelp(){
 if [ "$#" -eq 0 ]; then
   echo " --- NB: \"Use $0 -h\" to print help (instructions) message ---"
 else
-  while getopts hd:c: flag
+  while getopts hd:c:n: flag
   do
       case "${flag}" in
           h) printhelp;;
           d) dir=${OPTARG};;
           c) cmdlineInput=${OPTARG};;
+          n) LANtestInput=${OPTARG};;
           *) echo " * ERROR: Invalid/unknown option. Use \"-h\" for help." >/dev/stderr; exit 1;;
       esac
   done
@@ -127,16 +130,24 @@ fi
 
 # Get working folder containing images/wallpapers (by default
 # this folder is the same as the connected wireless SSID
+[ -z "$LANtestInput" ] && {
 [ -n "$dir" ] && workFolder="$dir" || {
   currentSSID=$(iwgetid | grep -Po 'ESSID:"\K.*(?=")')
   workFolder="$root_folder/$currentSSID";}
+} || {
+  lantest="${LANtestInput%=*}"
+  landir="${LANtestInput#*=}"
+  eval "$lantest"
+  rcode="$?"
+  [[ "$rcode" == "0" ]] && workFolder="$root_folder/$landir"
+}
 
 # Error if subfolder with wallpapers does not exist - nested:
 [ ! -d "$workFolder" ] && { \
-  [ -n "$dir" ] && echo "ERROR: User-specified folder \"$dir\" with wallpapers/images does not exist." > /dev/stderr || {
-  	echo "ERROR: Current SSID is \"$currentSSID\", so wallpaper-directory" >/dev/stderr ;\
-    echo "       should be: \"$workFolder\" (can also be a symlink)." >/dev/stderr ;}
-  echo "       This script cannot continue due to this problem." >/dev/stderr ; exit 1;}
+ 	echo "ERROR: Expected subfolder name: \"$workFolder\" to exist (with wallpapers, it can also be a symlink)." >&2
+  echo "       Current working directory: \"$(pwd)\"." >&2
+  echo "       This script cannot continue due to this problem." >&2 ; exit 1;
+}
 
 # Allow script to be called from any directory and exit to originating directory:
 trap "{ popd 2>&1 >/dev/null; exit 255; }" SIGINT SIGTERM ERR
