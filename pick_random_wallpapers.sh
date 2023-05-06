@@ -49,6 +49,8 @@ printhelp(){
   echo " -h           : Print this help message"
   echo " -d (dir)     : Specify a directory to use, instead of the SSID-name"
   echo ' -n "expr=dir": Specify a commandline for LAN-test and use "dir" if no errors (ret code=0)'.
+  echo '                WARNING: You need "=dir", where "dir" is a subdirectory/symlink to wallpapers!'.
+  echo '       Example: -n "nmcli dev wifi | grep -qi machine_iot_5g && iwlist scan 2>&1 | grep -qi machine_iot_5g=Machine" (one long string)'
   echo '       Example: -n "ping -c 1 192.168.1.1 >/dev/null && arp |grep -i '\'192.168.1.1\''|grep -oP '\'\\w{2}:\\w{2}:\\w{2}:\\w{2}:\\w{2}:\\w{2}\'' | grep -qi '\'ab:cd:ef:12:34:56\''=Machine" (one long string)'
   echo " -c           : Specify a commandline for setting the background."
   echo "                The alternative is to change this commandline, by"
